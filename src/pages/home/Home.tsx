@@ -11,11 +11,12 @@ const HomeContainer = styled.div`
 const BodyContainer = styled.div`
   display: flex;
   flex: 1;
+  height: 90vh;
 `;
 const ContainerR = styled.div`
   width: 100%;
 
-padding:3.5% 1% 0% 1%;
+padding:2% 1% 0% 1%;
 
 `
 const Home = () => {
@@ -33,3 +34,10 @@ const Home = () => {
 };
 
 export default Home;
+// 
+// 
+// 
+// 
+
+
+// ****************************************
