@@ -1,7 +1,5 @@
-import React, { useState } from "react";
-import Table from "react-bootstrap/Table";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import Button from "react-bootstrap/Button";
 import EquipeModal from "./EquipeModal.tsx";
 import { MdDelete } from "react-icons/md";
 import { FaEdit } from "react-icons/fa";
@@ -9,7 +7,8 @@ import Modal from "react-bootstrap/Modal";
 import ToastContainer from "react-bootstrap/ToastContainer";
 import Toast from "react-bootstrap/Toast";
 import UpdateEquipe from "./UpdateEquipe.tsx";
-
+import { Button, Table } from "react-bootstrap";
+import axios from "axios";
 // Interfaces
 interface EntAdjoints {
   entadj1: string;
@@ -72,6 +71,15 @@ const Equipe: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showToast, setShowToast] = useState<boolean>(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [teams, setTeams] = useState<FormData[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+// *******************************
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/teams")
+      .then((res) => res.json())
+      .then((data) => setTeams(data.teams));
+  }, []);
 
   const [formData, setFormData] = useState<FormData>({
     id: "",
@@ -136,7 +144,7 @@ const Equipe: React.FC = () => {
     });
   };
 
-  const handleSubmit = () => {
+  const validateForm = (formData: FormData) => {
     const errors: { [key: string]: string } = {};
     const requiredFields = [
       "id",
@@ -175,72 +183,72 @@ const Equipe: React.FC = () => {
       }
     });
 
+    return errors;
+  };
+
+  const handleSubmit = () => {
+    const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
 
-    setFormErrors({});
-    console.log(formData);
-    handleClose();
+    fetch("http://localhost:5000/api/teams", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setTeams((prev) => [...prev, data.team]);
+        setShowToast(true);
+        handleClose();
+      })
+      .catch((error) => console.error("Error creating team:", error));
   };
 
   const handleUpdateSubmit = () => {
-    const errors: { [key: string]: string } = {};
-    const requiredFields = [
-      "id",
-      "name",
-      "code",
-      "country",
-      "city",
-      "founded",
-      "logo",
-      "group",
-      "createdAt",
-      "staf.entprincipal",
-      "staf.entadjoints.entadj1",
-      "staf.entadjoints.entadj2",
-      "staf.manager",
-      "staf.entgardien",
-      "staf.prepphysique",
-      "staf.analystedonnes",
-      "staf.kine",
-      "staf.kineadjoint",
-      "staf.medecins.medc1",
-      "staf.medecins.medc2",
-      "staf.administration.president",
-      "staf.administration.vicepresident",
-      "staf.recruteurs.recr1",
-      "staf.recruteurs.recr2",
-    ];
-
-    const getNestedValue = (obj: any, keyPath: string[]) =>
-      keyPath.reduce((acc, key) => acc?.[key], obj);
-
-    requiredFields.forEach((field) => {
-      const value = getNestedValue(formData, field.split("."));
-      if (typeof value !== "string" || value.trim() === "") {
-        errors[field] = "Ce champ est requis.";
-      }
-    });
-
+    const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setUpdateFormErrors(errors);
       setUpdateGeneralError("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
-    setUpdateFormErrors({});
-    setUpdateGeneralError(undefined);
-    console.log("Updated data:", formData);
-    setShowUpdateModal(false);
-    setShowToast(true);
+    if (!selectedTeamId) return;
+
+    fetch(`http://localhost:5000/api/teams/${selectedTeamId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setTeams((prev) =>
+          prev.map((t) => (t.id === selectedTeamId ? data.team : t))
+        );
+        setShowUpdateModal(false);
+        setShowToast(true);
+      })
+      .catch((error) => console.error("Error updating team:", error));
   };
 
   const handleDeleteConfirm = () => {
-    setShowDeleteModal(false);
-    setSelectedIndex(null);
-    setShowToast(true);
+    if (!selectedTeamId) return;
+
+    fetch(`http://localhost:5000/api/teams/${selectedTeamId}`, {
+      method: "DELETE",
+    })
+      .then(() => {
+        setTeams((prev) => prev.filter((t) => t.id !== selectedTeamId));
+        setShowDeleteModal(false);
+        setShowToast(true);
+      })
+      .catch((error) => console.error("Error deleting team:", error));
   };
 
   return (
@@ -251,6 +259,7 @@ const Equipe: React.FC = () => {
           Ajouter
         </Button>
       </HeaderMatch>
+
       <ToastContainer position="top-end" className="p-3">
         <Toast
           bg="success"
@@ -265,6 +274,7 @@ const Equipe: React.FC = () => {
           <Toast.Body className="text-white">Opération réussie !</Toast.Body>
         </Toast>
       </ToastContainer>
+
       <EquipeModal
         show={show}
         handleClose={handleClose}
@@ -289,33 +299,43 @@ const Equipe: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Mark</td>
-                <td>Otto</td>
-                <td>@mdo</td>
-                <td>John</td>
-                <td>Doe</td>
-                <td>@johndoe</td>
-                <td>@johndoe</td>
-                <td>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => setShowUpdateModal(true)}
-                  >
-                    <FaEdit />
-                  </Button>
-
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => setShowDeleteModal(true)}
-                  >
-                    <MdDelete />
-                  </Button>
-                </td>
-              </tr>
+              {teams.map((team) => (
+                <tr key={team.id}>
+                  <td>{team.name}</td>
+                  <td>{team.code}</td>
+                  <td>{team.country}</td>
+                  <td>{team.city}</td>
+                  <td>{team.founded}</td>
+                  <td>
+                    <img src={team.logo} alt={team.name} width="40" />
+                  </td>
+                  <td>{team.group}</td>
+                  <td>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => {
+                        setSelectedTeamId(team.id);
+                        setFormData(team);
+                        setShowUpdateModal(true);
+                      }}
+                    >
+                      <FaEdit />
+                    </Button>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTeamId(team.id);
+                        setShowDeleteModal(true);
+                      }}
+                    >
+                      <MdDelete />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </Table>
         </div>
@@ -329,7 +349,7 @@ const Equipe: React.FC = () => {
         <Modal.Header closeButton>
           <Modal.Title>Confirm Deletion</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Are you sure you want to delete this player?</Modal.Body>
+        <Modal.Body>Are you sure you want to delete this team?</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
             No

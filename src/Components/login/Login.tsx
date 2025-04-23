@@ -1,8 +1,10 @@
-import React from "react";
+
 import styled, { createGlobalStyle } from "styled-components";
 import { FiMail, FiLock } from "react-icons/fi";
-import Picture from "../../assets/Picture.png"; // Adjust the path as necessary
-
+import Picture from "../../assets/Picture.png"; 
+import React, { useState } from "react";
+import  useAuthStore  from "../../Store/authStore";
+import { useNavigate } from "react-router-dom"; 
 const GlobalStyle = createGlobalStyle`
   * {
     box-sizing: border-box;
@@ -17,7 +19,6 @@ const GlobalStyle = createGlobalStyle`
     overflow-x: hidden;
   }
 `;
-
 const Container = styled.div`
   display: flex;
   height: 100%;
@@ -131,6 +132,17 @@ const ForgotPassword = styled.p`
 
 // Main component
 const LoginPage: React.FC = () => {
+  const { login, isLoading, error } = useAuthStore();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate(); // ⬅️ Init navigation hook
+
+  const handleLogin = async () => {
+    await login(username, password);
+    if (useAuthStore.getState().user) {
+      navigate("/"); // ⬅️ Redirect to dashboard route ("/" goes to <Dashboard /> via index route)
+    }
+  };
   return (
     <>
       <GlobalStyle />
@@ -146,15 +158,28 @@ const LoginPage: React.FC = () => {
               <IconWrapper>
                 <FiMail />
               </IconWrapper>
-              <Input type="email" placeholder="Email Address" />
+              <Input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
             </InputGroup>
             <InputGroup>
               <IconWrapper>
                 <FiLock />
               </IconWrapper>
-              <Input type="password" placeholder="Password" />
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </InputGroup>
-            <Button>Login</Button>
+            <Button onClick={handleLogin} disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
+            </Button>
+            {error && <p style={{ color: "red" }}>{error}</p>}
             <ForgotPassword>Forgot Password</ForgotPassword>
           </FormWrapper>
         </RightPanel>
